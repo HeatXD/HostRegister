@@ -9,7 +9,8 @@ mod proto;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let sock = UdpSocket::bind("127.0.0.1:8080".parse::<SocketAddr>().unwrap()).await?;
+    let server_addr = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
+    let sock = UdpSocket::bind(server_addr).await?;
     let r = Arc::new(sock);
     let s = r.clone();
     let (tx, mut rx) = mpsc::channel::<(Vec<u8>, SocketAddr)>(1_000);
@@ -42,16 +43,16 @@ async fn main() -> io::Result<()> {
                         .unwrap();
                 }
             }
+            // check if cleanup is needed.
             if host.should_be_removed() {
                 host_map.remove(&host.addr);
+                println!("Removed {:?} as an available host. Timed out.", &host.addr);
             }
         }
         // clean up the hosts that have timed out.
         host_register.retain(|_, host| !host.delete_later);
         // poll socket. on err just continue.
-        let (len, addr) = r
-            .try_recv_from(&mut buf)
-            .unwrap_or((0, "127.0.0.1:8080".parse::<SocketAddr>().unwrap()));
+        let (len, addr) = r.try_recv_from(&mut buf).unwrap_or((0, server_addr));
         if len == 0 {
             continue;
         }
@@ -77,7 +78,6 @@ async fn main() -> io::Result<()> {
             }
             if let Some(host_info) = host_register.get_mut(host_id.unwrap()) {
                 host_info.last_received_ping = SystemTime::now();
-                // increment the trip count and send pong respone
                 let response = proto::MsgType::PingResponse;
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
@@ -92,6 +92,9 @@ async fn main() -> io::Result<()> {
             // check if the host_map already has an id for this socket
             if let Some(host_id) = host_map.get(&addr) {
                 id = host_id.clone();
+                if let Some(host) = host_register.get_mut(&id) {
+                    host.last_received_ping = SystemTime::now();
+                }
             } else {
                 while host_register.get(&id).is_some() {
                     id = nanoid!(host_id_length, &host_alphabet);
@@ -108,6 +111,7 @@ async fn main() -> io::Result<()> {
                 // add to registers.
                 host_register.insert(id.clone(), new_host);
                 host_map.insert(addr.clone(), id.clone());
+                println!("Added {:?} to the host register.", &addr);
             }
             // send RegisterResponse
             let response = proto::MsgType::HostRegisterResponse { host_code: id };

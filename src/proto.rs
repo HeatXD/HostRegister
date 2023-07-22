@@ -35,8 +35,7 @@ impl Host {
     }
 
     pub fn should_be_removed(&mut self) -> bool {
-        let should_remove = self.last_received_ping.elapsed().unwrap() >= HOST_REMOVAL_TIMEMOUT;
-        self.delete_later = should_remove;
-        return should_remove;
+        self.delete_later = self.last_received_ping.elapsed().unwrap() >= HOST_REMOVAL_TIMEMOUT;
+        return self.delete_later;
     }
 }
