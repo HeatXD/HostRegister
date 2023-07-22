@@ -21,8 +21,6 @@ async fn main() -> io::Result<()> {
     // host bookkeeping
     let mut host_register: HashMap<String, proto::Host> = HashMap::new();
     let mut host_map: HashMap<SocketAddr, String> = HashMap::new();
-    // housekeeping thread
-    tokio::spawn(async move { loop {} });
     // send thread
     tokio::spawn(async move {
         while let Some((bytes, addr)) = rx.recv().await {
@@ -49,7 +47,7 @@ async fn main() -> io::Result<()> {
             }
         }
         // clean up the hosts that have timed out.
-        host_register.retain(|_, host | !host.delete_later);
+        host_register.retain(|_, host| !host.delete_later);
         // poll socket. on err just continue.
         let (len, addr) = r
             .try_recv_from(&mut buf)
