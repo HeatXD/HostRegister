@@ -1,6 +1,8 @@
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, SystemTime};
+use std::{
+    net::SocketAddr,
+    time::{Duration, SystemTime},
+};
 use tokio::net::UdpSocket;
 
 const PING_INTERVAL: Duration = Duration::from_secs(10);
@@ -44,17 +46,21 @@ impl Host {
 }
 
 // Socket Agnostic Interface will allow the user to use different types of sockets. important part is that the socket uses the SAI
-#[async_trait]
 pub trait SocketAgnosticInterface {
-    async fn send_to_target(&self, buf: &[u8], target: String) -> std::io::Result<usize>;
+    fn send_to_target(&self, buf: &[u8], target: String) -> std::io::Result<usize>;
     fn poll_messages(&self, buf: &mut [u8]) -> std::io::Result<(usize, String)>;
 }
 
 // example SAI for tokio::net::UdpSocket
-#[async_trait]
 impl SocketAgnosticInterface for UdpSocket {
-    async fn send_to_target(&self, bytes: &[u8], target: String) -> std::io::Result<usize> {
-        self.send_to(&bytes, &target).await
+    fn send_to_target(&self, bytes: &[u8], target: String) -> std::io::Result<usize> {
+        let addr = target.parse::<SocketAddr>().unwrap();
+        let result = self.try_send_to(&bytes, addr);
+        if result.is_err() {
+            Err(result.unwrap_err())
+        } else {
+            Ok(result.unwrap())
+        }
     }
 
     fn poll_messages(&self, buf: &mut [u8]) -> std::io::Result<(usize, String)> {

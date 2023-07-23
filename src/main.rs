@@ -27,7 +27,7 @@ async fn main() -> io::Result<()> {
     // send thread
     tokio::spawn(async move {
         while let Some((bytes, addr)) = rx.recv().await {
-            let len = s.send_to_target(&bytes, addr.clone()).await.unwrap();
+            let len = s.send_to_target(&bytes, addr.clone()).unwrap();
             println!("{:?} bytes sent to {:?}", len, addr);
         }
     });

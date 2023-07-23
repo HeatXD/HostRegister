@@ -10,4 +10,3 @@ tokio = { version = "1.29.1", features = ["full"] }
 serde = { version = "1.0.173", features = ["derive"] }
 serde_json = "1.0.103"
 nanoid = "0.4.0"
-async-trait = "0.1.72" # use this crate until its stable. info: https://github.com/rust-lang/wg-async/issues/279 
