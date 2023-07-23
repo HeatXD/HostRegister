@@ -11,8 +11,8 @@ mod proto;
 #[tokio::main]
 async fn main() -> io::Result<()> {
     // socket setup (could be any socket implementing the SAI in proto.rs)
-    let server_addr = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
-    let sock = UdpSocket::bind(server_addr).await?;
+    let server_addr = String::from("127.0.0.1:8080");
+    let sock = UdpSocket::bind(server_addr.parse::<SocketAddr>().unwrap()).await?;
     let r = Arc::new(sock);
     let s = r.clone();
     let (tx, mut rx) = mpsc::channel::<(Vec<u8>, String)>(1_000);
@@ -54,7 +54,9 @@ async fn main() -> io::Result<()> {
         // clean up the hosts that have timed out.
         host_register.retain(|_, host| !host.delete_later);
         // poll socket. on err just continue.
-        let (len, addr) = r.poll_messages(&mut buf).unwrap_or((0, "127.0.0.1:8080".to_string()));
+        let (len, addr) = r
+            .poll_messages(&mut buf)
+            .unwrap_or((0, server_addr.clone()));
         if len == 0 {
             continue;
         }
@@ -150,7 +152,9 @@ async fn main() -> io::Result<()> {
                 };
                 let data_for_host = serde_json::to_string(&host_response).unwrap_or_default();
                 if !data_for_host.is_empty() {
-                    tx.send((data_for_host.into_bytes(), host_info.addr.clone())).await.unwrap();
+                    tx.send((data_for_host.into_bytes(), host_info.addr.clone()))
+                        .await
+                        .unwrap();
                 }
             }
             let data_to_send = serde_json::to_string(&response).unwrap_or_default();

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, Duration};
+use std::time::{Duration, SystemTime};
 use tokio::net::UdpSocket;
 
 const PING_INTERVAL: Duration = Duration::from_secs(10);
