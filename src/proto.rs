@@ -15,8 +15,10 @@ pub enum MsgType {
     HostRegisterResponse { host_code: String },
     HostLookupRequest { host_code: String },
     HostLookupResponse { success: bool, host_info: String },
+    ClientLookupResponse { client_info: String },
 }
 
+// Host Information
 pub struct Host {
     pub id: String,
     pub addr: SocketAddr,

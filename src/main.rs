@@ -136,12 +136,20 @@ async fn main() -> io::Result<()> {
                 }
                 continue;
             }
-            // if host_register has the wanted host. send a good response with the host info.
+            // if host_register has the wanted host. send a response with the host info.
             if let Some(host_info) = host_register.get(id_to_find) {
                 response = proto::MsgType::HostLookupResponse {
                     success: true,
                     host_info: host_info.addr.to_string(),
                 };
+                // and send ClientLookupResponse to the host
+                let host_response = proto::MsgType::ClientLookupResponse {
+                    client_info: addr.to_string(),
+                };
+                let data_for_host = serde_json::to_string(&host_response).unwrap_or_default();
+                if !data_for_host.is_empty() {
+                    tx.send((data_for_host.into_bytes(), host_info.addr)).await.unwrap();
+                }
             }
             let data_to_send = serde_json::to_string(&response).unwrap_or_default();
             if !data_to_send.is_empty() {
