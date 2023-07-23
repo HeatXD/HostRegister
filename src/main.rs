@@ -1,4 +1,5 @@
 use nanoid::nanoid;
+use proto::SocketAgnosticInterface;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::time::SystemTime;
@@ -9,11 +10,12 @@ mod proto;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
+    // socket setup (could be any socket implementing the SAI in proto.rs)
     let server_addr = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
     let sock = UdpSocket::bind(server_addr).await?;
     let r = Arc::new(sock);
     let s = r.clone();
-    let (tx, mut rx) = mpsc::channel::<(Vec<u8>, SocketAddr)>(1_000);
+    let (tx, mut rx) = mpsc::channel::<(Vec<u8>, String)>(1_000);
     // host id alphabet
     let host_id_length = 8;
     let host_alphabet: [char; 16] = [
@@ -21,11 +23,11 @@ async fn main() -> io::Result<()> {
     ];
     // host bookkeeping
     let mut host_register: HashMap<String, proto::Host> = HashMap::new();
-    let mut host_map: HashMap<SocketAddr, String> = HashMap::new();
+    let mut host_map: HashMap<String, String> = HashMap::new();
     // send thread
     tokio::spawn(async move {
         while let Some((bytes, addr)) = rx.recv().await {
-            let len = s.send_to(&bytes, &addr).await.unwrap();
+            let len = s.send_to_target(&bytes, addr.clone()).await.unwrap();
             println!("{:?} bytes sent to {:?}", len, addr);
         }
     });
@@ -38,7 +40,7 @@ async fn main() -> io::Result<()> {
                 let response = proto::MsgType::PingResponse;
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
-                    tx.send((data_to_send.into_bytes(), host.addr))
+                    tx.send((data_to_send.into_bytes(), host.addr.clone()))
                         .await
                         .unwrap();
                 }
@@ -52,7 +54,7 @@ async fn main() -> io::Result<()> {
         // clean up the hosts that have timed out.
         host_register.retain(|_, host| !host.delete_later);
         // poll socket. on err just continue.
-        let (len, addr) = r.try_recv_from(&mut buf).unwrap_or((0, server_addr));
+        let (len, addr) = r.poll_messages(&mut buf).unwrap_or((0, "127.0.0.1:8080".to_string()));
         if len == 0 {
             continue;
         }
@@ -148,7 +150,7 @@ async fn main() -> io::Result<()> {
                 };
                 let data_for_host = serde_json::to_string(&host_response).unwrap_or_default();
                 if !data_for_host.is_empty() {
-                    tx.send((data_for_host.into_bytes(), host_info.addr)).await.unwrap();
+                    tx.send((data_for_host.into_bytes(), host_info.addr.clone())).await.unwrap();
                 }
             }
             let data_to_send = serde_json::to_string(&response).unwrap_or_default();
