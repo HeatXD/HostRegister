@@ -75,13 +75,21 @@ impl SocketAgnosticInterface for UdpSocket {
         }
     }
 }
+struct EnetAddr {
+    addr: enet::Address,
+}
+
+impl ToString for EnetAddr {
+    fn to_string(&self) -> String {
+        format!("{:?}:{:?}",self.addr.ip(), self.addr.port())
+    }
+}
 
 impl SocketAgnosticInterface for enet::Host<()> {
     fn send_to_target(&mut self, buf: &[u8], target: String) -> std::io::Result<usize> {
         let target_addr = Address::from(target.parse::<SocketAddrV4>().unwrap());
         for mut peer in self.peers() {
             if peer.address() == target_addr {
-                println!("B");
                 let msg = Packet::new(buf, PacketMode::ReliableSequenced).unwrap();
                 let result = peer.send_packet(msg, 0);
                 if result.is_ok() {
@@ -114,7 +122,8 @@ impl SocketAgnosticInterface for enet::Host<()> {
                         channel_id,
                         data
                     );
-                    return Ok((data.len(), format!("{:?}", sender.address())));
+                    let addr = EnetAddr {addr : sender.address() };
+                    return Ok((data.len(), addr.to_string()));
                 }
             }
         }

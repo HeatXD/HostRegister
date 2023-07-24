@@ -56,7 +56,7 @@ async fn main() -> io::Result<()> {
             continue;
         }
         // get the required slice of the request
-        let Ok(data_str) = std::str::from_utf8(&buf[1..len-1]) else {
+        let Ok(data_str) = std::str::from_utf8(&buf[..len]) else {
             continue;
         };
         // parse the string of data into serde_json::Value.
