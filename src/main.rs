@@ -1,26 +1,16 @@
-use enet::Enet;
 use nanoid::nanoid;
+use proto::EnetAddr;
+use proto::EnetHost;
 use proto::SocketAgnosticInterface;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::time::SystemTime;
-use std::{io, net::Ipv4Addr};
+
 mod proto;
 
-#[tokio::main]
-async fn main() -> io::Result<()> {
+fn main() {
     // socket setup (could be any socket implementing the SAI in proto.rs)
-    let enet = Enet::new().expect("failed to init enet");
-    let local_addr = enet::Address::new(Ipv4Addr::LOCALHOST, 4422);
-    let mut sock = enet
-        .create_host(
-            Some(&local_addr),
-            333,
-            enet::ChannelLimit::Limited(1),
-            enet::BandwidthLimit::Unlimited,
-            enet::BandwidthLimit::Unlimited,
-        )
-        .expect("couldn't create host");
+    let mut enet_host = EnetHost::init(4422, 500);
     // host id alphabet
     let host_id_length = 8;
     let host_alphabet: [char; 16] = [
@@ -29,7 +19,7 @@ async fn main() -> io::Result<()> {
     // host bookkeeping
     let mut host_register: HashMap<String, proto::Host> = HashMap::new();
     let mut host_map: HashMap<String, String> = HashMap::new();
-
+    
     let mut buf = [0; 1024];
     loop {
         // send pings to all hosts to see if theyre still active.
@@ -38,7 +28,7 @@ async fn main() -> io::Result<()> {
                 let response = proto::MsgType::PingResponse;
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
-                    sock.send_to_target(data_to_send.as_bytes(), host.addr.clone())
+                    enet_host.send_to_target(data_to_send.as_bytes(), host.addr.clone())
                         .unwrap();
                 }
             }
@@ -49,9 +39,25 @@ async fn main() -> io::Result<()> {
             }
         }
         // clean up the hosts that have timed out.
-        host_register.retain(|_, host| !host.delete_later);
+        host_register.retain(|_, host| {
+            if host.delete_later {
+                // disconnect from enet
+                for peer in enet_host.sock.peers() {
+                    let addr = EnetAddr {
+                        addr: peer.address(),
+                    };
+                    if addr.to_string() == host.addr {
+                        peer.disconnect_now(0);
+                        break;
+                    }
+                }
+            }
+            !host.delete_later
+        });
+        // cleanup clients
+        enet_host.check_and_cleanup_clients();
         // poll socket. on err just continue.
-        let (len, addr) = sock.poll_messages(&mut buf).unwrap_or((0, String::new()));
+        let (len, addr) = enet_host.poll_messages(&mut buf).unwrap_or((0, String::new()));
         if len == 0 {
             continue;
         }
@@ -80,7 +86,7 @@ async fn main() -> io::Result<()> {
                 let response = proto::MsgType::PingResponse;
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
-                    sock.send_to_target(data_to_send.as_bytes(), addr.clone())
+                    enet_host.send_to_target(data_to_send.as_bytes(), addr.clone())
                         .unwrap();
                 }
             }
@@ -117,7 +123,7 @@ async fn main() -> io::Result<()> {
             let response = proto::MsgType::HostRegisterResponse { host_code: id };
             let data_to_send = serde_json::to_string(&response).unwrap_or_default();
             if !data_to_send.is_empty() {
-                sock.send_to_target(data_to_send.as_bytes(), addr.clone())
+                enet_host.send_to_target(data_to_send.as_bytes(), addr.clone())
                     .unwrap();
             }
             continue;
@@ -133,7 +139,7 @@ async fn main() -> io::Result<()> {
                 // no hostcode send failed response.
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
-                    sock.send_to_target(data_to_send.as_bytes(), addr.clone())
+                    enet_host.send_to_target(data_to_send.as_bytes(), addr.clone())
                         .unwrap();
                 }
                 continue;
@@ -150,13 +156,13 @@ async fn main() -> io::Result<()> {
                 };
                 let data_for_host = serde_json::to_string(&host_response).unwrap_or_default();
                 if !data_for_host.is_empty() {
-                    sock.send_to_target(data_for_host.as_bytes(), host_info.addr.clone())
+                    enet_host.send_to_target(data_for_host.as_bytes(), host_info.addr.clone())
                         .unwrap();
                 }
             }
             let data_to_send = serde_json::to_string(&response).unwrap_or_default();
             if !data_to_send.is_empty() {
-                sock.send_to_target(data_to_send.as_bytes(), addr.clone())
+                enet_host.send_to_target(data_to_send.as_bytes(), addr.clone())
                     .unwrap();
             }
             continue;
