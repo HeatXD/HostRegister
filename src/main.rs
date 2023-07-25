@@ -19,7 +19,7 @@ fn main() {
     // host bookkeeping
     let mut host_register: HashMap<String, proto::Host> = HashMap::new();
     let mut host_map: HashMap<String, String> = HashMap::new();
-    
+
     let mut buf = [0; 1024];
     loop {
         // send pings to all hosts to see if theyre still active.
@@ -28,7 +28,8 @@ fn main() {
                 let response = proto::MsgType::PingResponse;
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
-                    enet_host.send_to_target(data_to_send, host.addr.clone())
+                    enet_host
+                        .send_to_target(data_to_send, host.addr.clone())
                         .unwrap();
                 }
             }
@@ -57,7 +58,9 @@ fn main() {
         // cleanup clients
         enet_host.check_and_cleanup_clients();
         // poll socket. on err just continue.
-        let (len, addr) = enet_host.poll_messages(&mut buf).unwrap_or((0, String::new()));
+        let (len, addr) = enet_host
+            .poll_messages(&mut buf)
+            .unwrap_or((0, String::new()));
         if len == 0 {
             continue;
         }
@@ -94,10 +97,10 @@ fn main() {
                 id = host_id.clone();
                 if let Some(host) = host_register.get_mut(&id) {
                     host.last_received_ping = SystemTime::now();
+                    println!("Host: {:?} is already registered.", &addr);
+                    // remove it from the activity map since its a known host. it might of reconnected.
+                    enet_host.peer_activity_map.remove(&addr);
                 }
-                println!("host: {:?} is already registered.", &addr);
-                // remove it from the activity map since its a known host. it might of reconnected.
-                enet_host.peer_activity_map.remove(&addr);
             } else {
                 while host_register.get(&id).is_some() {
                     id = nanoid!(host_id_length, &host_alphabet);
@@ -122,7 +125,8 @@ fn main() {
             let response = proto::MsgType::HostRegisterResponse { host_code: id };
             let data_to_send = serde_json::to_string(&response).unwrap_or_default();
             if !data_to_send.is_empty() {
-                enet_host.send_to_target(data_to_send, addr.clone())
+                enet_host
+                    .send_to_target(data_to_send, addr.clone())
                     .unwrap();
             }
             continue;
@@ -138,7 +142,8 @@ fn main() {
                 // no hostcode send failed response.
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
-                    enet_host.send_to_target(data_to_send, addr.clone())
+                    enet_host
+                        .send_to_target(data_to_send, addr.clone())
                         .unwrap();
                 }
                 continue;
@@ -155,13 +160,15 @@ fn main() {
                 };
                 let data_for_host = serde_json::to_string(&host_response).unwrap_or_default();
                 if !data_for_host.is_empty() {
-                    enet_host.send_to_target(data_for_host, host_info.addr.clone())
+                    enet_host
+                        .send_to_target(data_for_host, host_info.addr.clone())
                         .unwrap();
                 }
             }
             let data_to_send = serde_json::to_string(&response).unwrap_or_default();
             if !data_to_send.is_empty() {
-                enet_host.send_to_target(data_to_send, addr.clone())
+                enet_host
+                    .send_to_target(data_to_send, addr.clone())
                     .unwrap();
             }
             continue;
