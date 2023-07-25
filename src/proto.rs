@@ -7,8 +7,8 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-const PING_INTERVAL: Duration = Duration::from_secs(10);
-const PEER_REMOVAL_TIMEMOUT: Duration = Duration::from_secs(30);
+const PING_INTERVAL: Duration = Duration::from_secs(60);
+const PEER_REMOVAL_TIMEMOUT: Duration = Duration::from_secs(120);
 
 // Message Types
 #[derive(Serialize, Deserialize)]
@@ -66,7 +66,7 @@ impl EnetHost {
                 addr: peer.address(),
             };
             if let Some(peer_time) = self.peer_activity_map.get(&addr.to_string()) {
-                if peer_time.elapsed().unwrap() > PEER_REMOVAL_TIMEMOUT / 2 {
+                if peer_time.elapsed().unwrap() > PEER_REMOVAL_TIMEMOUT / 4 {
                     peer.disconnect_now(0);
                     println!("Peer disconnected: {}", addr.to_string());
                     self.peer_activity_map.remove(&addr.to_string());
@@ -168,8 +168,11 @@ impl SocketAgnosticInterface for EnetHost {
                         data.len(),
                         channel_id,
                     );
-                    self.peer_activity_map
-                        .insert(addr.to_string(), SystemTime::now());
+                    // only update timers that have been registered when connecting and havent been removed by being a host.
+                    if self.peer_activity_map.contains_key(&addr.to_string()) {
+                        self.peer_activity_map
+                            .insert(addr.to_string(), SystemTime::now());
+                    }
                     return Ok((data.len(), addr.to_string()));
                 }
             }
