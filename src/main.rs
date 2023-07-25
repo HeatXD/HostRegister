@@ -22,6 +22,8 @@ fn main() {
     
     let mut buf = [0; 1024];
     loop {
+        // cleanup clients
+        enet_host.check_and_cleanup_clients();
         // send pings to all hosts to see if theyre still active.
         for (_, host) in &mut host_register {
             if host.should_send_ping() {
@@ -54,8 +56,6 @@ fn main() {
             }
             !host.delete_later
         });
-        // cleanup clients
-        enet_host.check_and_cleanup_clients();
         // poll socket. on err just continue.
         let (len, addr) = enet_host.poll_messages(&mut buf).unwrap_or((0, String::new()));
         if len == 0 {
@@ -118,6 +118,8 @@ fn main() {
                 host_register.insert(id.clone(), new_host);
                 host_map.insert(addr.clone(), id.clone());
                 println!("Added {:?} to the host register.", &addr);
+                // remove it from the activity map since its a known host. the map should only be for clients
+                enet_host.peer_activity_map.remove(&addr);
             }
             // send RegisterResponse
             let response = proto::MsgType::HostRegisterResponse { host_code: id };

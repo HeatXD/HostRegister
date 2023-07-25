@@ -1,14 +1,11 @@
 use enet::*;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
 use std::net::Ipv4Addr;
 use std::{
     collections::HashMap,
-    net::SocketAddr,
     net::SocketAddrV4,
     time::{Duration, SystemTime},
 };
-use tokio::net::UdpSocket;
 
 const PING_INTERVAL: Duration = Duration::from_secs(10);
 const PEER_REMOVAL_TIMEMOUT: Duration = Duration::from_secs(30);
@@ -56,33 +53,10 @@ pub trait SocketAgnosticInterface {
     fn poll_messages(&mut self, buf: &mut [u8]) -> std::io::Result<(usize, String)>;
 }
 
-// example SAI for tokio::net::UdpSocket
-impl SocketAgnosticInterface for UdpSocket {
-    fn send_to_target(&mut self, bytes: &[u8], target: String) -> std::io::Result<usize> {
-        let addr = target.parse::<SocketAddr>().unwrap();
-        let result = self.try_send_to(&bytes, addr);
-        if result.is_err() {
-            Err(result.unwrap_err())
-        } else {
-            Ok(result.unwrap())
-        }
-    }
-
-    fn poll_messages(&mut self, buf: &mut [u8]) -> std::io::Result<(usize, String)> {
-        let result = self.try_recv_from(buf);
-        if result.is_err() {
-            Err(result.unwrap_err())
-        } else {
-            let (len, addr) = result.unwrap();
-            Ok((len, addr.to_string()))
-        }
-    }
-}
-
 pub struct EnetHost {
     pub enet: enet::Enet,
     pub sock: enet::Host<()>,
-    pub peer_activity_map: HashMap<EnetAddr, SystemTime>,
+    pub peer_activity_map: HashMap<String, SystemTime>,
 }
 
 impl EnetHost {
@@ -91,11 +65,11 @@ impl EnetHost {
             let addr = EnetAddr {
                 addr: peer.address(),
             };
-            if let Some(peer_time) = self.peer_activity_map.get(&addr) {
+            if let Some(peer_time) = self.peer_activity_map.get(&addr.to_string()) {
                 if peer_time.elapsed().unwrap() > PEER_REMOVAL_TIMEMOUT {
                     peer.disconnect_now(0);
                     println!("Peer disconnected: {}", addr.to_string());
-                    self.peer_activity_map.remove(&addr);
+                    self.peer_activity_map.remove(&addr.to_string());
                 }
             }
         }
@@ -124,26 +98,11 @@ pub struct EnetAddr {
     pub addr: enet::Address,
 }
 
-impl Hash for EnetAddr {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.addr.ip().hash(state);
-        self.addr.port().hash(state);
-    }
-}
-
-impl Eq for EnetAddr {}
-
 impl Clone for EnetAddr {
     fn clone(&self) -> Self {
         EnetAddr {
             addr: self.addr.clone(),
         }
-    }
-}
-
-impl PartialEq for EnetAddr {
-    fn eq(&self, other: &Self) -> bool {
-        self.addr == other.addr
     }
 }
 
@@ -161,6 +120,7 @@ impl SocketAgnosticInterface for EnetHost {
                 let msg = Packet::new(buf, PacketMode::ReliableSequenced).unwrap();
                 let result = peer.send_packet(msg, 0);
                 if result.is_ok() {
+                    println!("Sent bytes to: {}, len: {}", target, &buf.len());
                     return Ok(buf.len());
                 } else {
                     return Ok(0);
@@ -179,13 +139,14 @@ impl SocketAgnosticInterface for EnetHost {
                         addr: peer.address(),
                     };
                     println!("Peer connected: {}", addr.to_string());
-                    self.peer_activity_map.insert(addr, SystemTime::now());
+                    self.peer_activity_map
+                        .insert(addr.to_string(), SystemTime::now());
                 }
                 Event::Disconnect(peer, _) => {
                     let addr = EnetAddr {
                         addr: peer.address(),
                     };
-                    self.peer_activity_map.remove(&addr);
+                    self.peer_activity_map.remove(&addr.to_string());
                     println!("Peer disconnected: {}", addr.to_string())
                 }
                 Event::Receive {
@@ -193,19 +154,19 @@ impl SocketAgnosticInterface for EnetHost {
                     channel_id,
                     packet,
                 } => {
+                    let addr = EnetAddr {
+                        addr: sender.address(),
+                    };
                     let data = packet.data();
                     buf[..data.len()].copy_from_slice(data);
                     println!(
                         "Received packet from: {:?}, len: {}, channel: {}",
-                        sender.address(),
+                        addr.to_string(),
                         data.len(),
                         channel_id,
                     );
-                    let addr = EnetAddr {
-                        addr: sender.address(),
-                    };
                     self.peer_activity_map
-                        .insert(addr.clone(), SystemTime::now());
+                        .insert(addr.to_string(), SystemTime::now());
                     return Ok((data.len(), addr.to_string()));
                 }
             }
