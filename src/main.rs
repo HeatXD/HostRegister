@@ -95,6 +95,9 @@ fn main() {
                 if let Some(host) = host_register.get_mut(&id) {
                     host.last_received_ping = SystemTime::now();
                 }
+                println!("host: {:?} is already registered.", &addr);
+                // remove it from the activity map since its a known host. it might of reconnected.
+                enet_host.peer_activity_map.remove(&addr);
             } else {
                 while host_register.get(&id).is_some() {
                     id = nanoid!(host_id_length, &host_alphabet);
