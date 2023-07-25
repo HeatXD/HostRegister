@@ -66,7 +66,7 @@ impl EnetHost {
                 addr: peer.address(),
             };
             if let Some(peer_time) = self.peer_activity_map.get(&addr.to_string()) {
-                if peer_time.elapsed().unwrap() > PEER_REMOVAL_TIMEMOUT {
+                if peer_time.elapsed().unwrap() > PEER_REMOVAL_TIMEMOUT / 2 {
                     peer.disconnect_now(0);
                     println!("Peer disconnected: {}", addr.to_string());
                     self.peer_activity_map.remove(&addr.to_string());

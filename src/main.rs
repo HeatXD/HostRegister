@@ -83,12 +83,6 @@ fn main() {
             }
             if let Some(host_info) = host_register.get_mut(host_id.unwrap()) {
                 host_info.last_received_ping = SystemTime::now();
-                let response = proto::MsgType::PingResponse;
-                let data_to_send = serde_json::to_string(&response).unwrap_or_default();
-                if !data_to_send.is_empty() {
-                    enet_host.send_to_target(data_to_send, addr.clone())
-                        .unwrap();
-                }
             }
             continue;
         }
