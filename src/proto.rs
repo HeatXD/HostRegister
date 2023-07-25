@@ -49,7 +49,7 @@ impl Host {
 
 // Socket Agnostic Interface will allow the user to use different types of sockets. important part is that the socket uses the SAI
 pub trait SocketAgnosticInterface {
-    fn send_to_target(&mut self, buf: &[u8], target: String) -> std::io::Result<usize>;
+    fn send_to_target(&mut self, data: String, target: String) -> std::io::Result<usize>;
     fn poll_messages(&mut self, buf: &mut [u8]) -> std::io::Result<(usize, String)>;
 }
 
@@ -113,7 +113,10 @@ impl ToString for EnetAddr {
 }
 
 impl SocketAgnosticInterface for EnetHost {
-    fn send_to_target(&mut self, buf: &[u8], target: String) -> std::io::Result<usize> {
+    fn send_to_target(&mut self, data: String, target: String) -> std::io::Result<usize> {
+        // have to null terminate the strings for c platforms
+        let send_data = data + "\0";
+        let buf = send_data.as_bytes();
         let target_addr = Address::from(target.parse::<SocketAddrV4>().unwrap());
         for mut peer in self.sock.peers() {
             if peer.address() == target_addr {
@@ -160,7 +163,7 @@ impl SocketAgnosticInterface for EnetHost {
                     let data = packet.data();
                     buf[..data.len()].copy_from_slice(data);
                     println!(
-                        "Received packet from: {:?}, len: {}, channel: {}",
+                        "Received packet from: {}, len: {}, channel: {}",
                         addr.to_string(),
                         data.len(),
                         channel_id,

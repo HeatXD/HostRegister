@@ -30,7 +30,7 @@ fn main() {
                 let response = proto::MsgType::PingResponse;
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
-                    enet_host.send_to_target(data_to_send.as_bytes(), host.addr.clone())
+                    enet_host.send_to_target(data_to_send, host.addr.clone())
                         .unwrap();
                 }
             }
@@ -86,7 +86,7 @@ fn main() {
                 let response = proto::MsgType::PingResponse;
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
-                    enet_host.send_to_target(data_to_send.as_bytes(), addr.clone())
+                    enet_host.send_to_target(data_to_send, addr.clone())
                         .unwrap();
                 }
             }
@@ -125,7 +125,7 @@ fn main() {
             let response = proto::MsgType::HostRegisterResponse { host_code: id };
             let data_to_send = serde_json::to_string(&response).unwrap_or_default();
             if !data_to_send.is_empty() {
-                enet_host.send_to_target(data_to_send.as_bytes(), addr.clone())
+                enet_host.send_to_target(data_to_send, addr.clone())
                     .unwrap();
             }
             continue;
@@ -141,7 +141,7 @@ fn main() {
                 // no hostcode send failed response.
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
-                    enet_host.send_to_target(data_to_send.as_bytes(), addr.clone())
+                    enet_host.send_to_target(data_to_send, addr.clone())
                         .unwrap();
                 }
                 continue;
@@ -158,13 +158,13 @@ fn main() {
                 };
                 let data_for_host = serde_json::to_string(&host_response).unwrap_or_default();
                 if !data_for_host.is_empty() {
-                    enet_host.send_to_target(data_for_host.as_bytes(), host_info.addr.clone())
+                    enet_host.send_to_target(data_for_host, host_info.addr.clone())
                         .unwrap();
                 }
             }
             let data_to_send = serde_json::to_string(&response).unwrap_or_default();
             if !data_to_send.is_empty() {
-                enet_host.send_to_target(data_to_send.as_bytes(), addr.clone())
+                enet_host.send_to_target(data_to_send, addr.clone())
                     .unwrap();
             }
             continue;
