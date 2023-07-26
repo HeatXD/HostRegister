@@ -136,7 +136,7 @@ impl SocketAgnosticInterface for EnetHost {
 
     fn poll_messages(&mut self) -> Vec<(usize, String, Vec<u8>)> {
         let mut result = Vec::new();
-        while let Ok(Some(event)) = self.sock.check_events() {
+        while let Ok(Some(event)) = self.sock.service(0) {
             match &event {
                 Event::Connect(peer) => {
                     let addr = EnetAddr {
