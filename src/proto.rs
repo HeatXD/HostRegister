@@ -161,7 +161,9 @@ impl SocketAgnosticInterface for EnetHost {
                     let addr = EnetAddr {
                         addr: sender.address(),
                     };
+                    let data_to_cpy = packet.data();
                     let mut data = Vec::new();
+                    data.reserve(data_to_cpy.len() + 1);
                     data.copy_from_slice(packet.data());
                     println!(
                         "Received packet from: {}, len: {}, channel: {}",
