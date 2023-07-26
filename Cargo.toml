@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.173", features = ["derive"] }
+tokio = { version = "1.29.1", features = ["macros", "time", "rt-multi-thread"] }
 serde_json = "1.0.103"
 nanoid = "0.4.0"
 enet = "0.3.0"

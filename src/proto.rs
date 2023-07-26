@@ -50,7 +50,7 @@ impl Host {
 // Socket Agnostic Interface will allow the user to use different types of sockets. important part is that the socket uses the SAI
 pub trait SocketAgnosticInterface {
     fn send_to_target(&mut self, data: String, target: String) -> std::io::Result<usize>;
-    fn poll_messages(&mut self, buf: &mut [u8]) -> std::io::Result<(usize, String)>;
+    fn poll_messages(&mut self) -> Vec<(usize, String, Vec<u8>)>;
 }
 
 pub struct EnetHost {
@@ -134,8 +134,9 @@ impl SocketAgnosticInterface for EnetHost {
         Ok(buf.len())
     }
 
-    fn poll_messages(&mut self, buf: &mut [u8]) -> std::io::Result<(usize, String)> {
-        if let Ok(Some(event)) = self.sock.service(0) {
+    fn poll_messages(&mut self) -> Vec<(usize, String, Vec<u8>)> {
+        let mut result = Vec::new();
+        while let Ok(Some(event)) = self.sock.check_events() {
             match &event {
                 Event::Connect(peer) => {
                     let addr = EnetAddr {
@@ -160,8 +161,8 @@ impl SocketAgnosticInterface for EnetHost {
                     let addr = EnetAddr {
                         addr: sender.address(),
                     };
-                    let data = packet.data();
-                    buf[..data.len()].copy_from_slice(data);
+                    let mut data = Vec::new();
+                    data.copy_from_slice(packet.data());
                     println!(
                         "Received packet from: {}, len: {}, channel: {}",
                         addr.to_string(),
@@ -173,10 +174,11 @@ impl SocketAgnosticInterface for EnetHost {
                         self.peer_activity_map
                             .insert(addr.to_string(), SystemTime::now());
                     }
-                    return Ok((data.len(), addr.to_string()));
+
+                    result.push((data.len(), addr.to_string(), data));
                 }
             }
         }
-        Ok((0, String::new()))
+        result
     }
 }
