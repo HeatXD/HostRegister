@@ -143,7 +143,7 @@ fn main() {
                 let data_to_send = serde_json::to_string(&response).unwrap_or_default();
                 if !data_to_send.is_empty() {
                     enet_host
-                        .send_to_target(data_to_send, addr.clone())
+                        .send_to_target(data_to_send, addr.to_string())
                         .unwrap();
                 }
                 continue;

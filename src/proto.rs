@@ -76,7 +76,7 @@ impl EnetHost {
     }
     pub fn init(port: u16, max_concurrent_peers: usize) -> Self {
         let enet = Enet::new().expect("failed to init enet");
-        let local_addr = enet::Address::new(Ipv4Addr::LOCALHOST, port);
+        let local_addr = enet::Address::new(Ipv4Addr::UNSPECIFIED, port);
         let host = enet
             .create_host(
                 Some(&local_addr),
