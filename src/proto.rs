@@ -163,7 +163,7 @@ impl SocketAgnosticInterface for EnetHost {
                     };
                     let data_to_cpy = packet.data();
                     let mut data = Vec::new();
-                    data.resize(data_to_cpy.len() + 1, 0);
+                    data.resize(data_to_cpy.len(), 0);
                     data.copy_from_slice(packet.data());
                     println!(
                         "Received packet from: {}, len: {}, channel: {}",
