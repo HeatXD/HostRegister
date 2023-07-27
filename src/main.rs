@@ -10,8 +10,9 @@ mod proto;
 
 #[tokio::main]
 async fn main() {
+    // todo add either console arg support or .env support. 
     // socket setup (could be any socket implementing the SAI in proto.rs)
-    let mut enet_host = EnetHost::init(4422, 500);
+    let mut enet_host = EnetHost::init(37373, 500);
     // host id alphabet
     let host_id_length = 8;
     let host_alphabet: [char; 16] = [
