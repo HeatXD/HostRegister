@@ -60,6 +60,8 @@ async fn main() {
         });
         // cleanup clients
         enet_host.check_and_cleanup_clients();
+        // CCU
+        println!("[CCU] hosts: {}, clients: {}", host_register.len(), enet_host.peer_activity_map.keys().len());
         // poll socket. on err just continue.
         for (len, addr, buf) in enet_host.poll_messages() {
             if len == 0 {
