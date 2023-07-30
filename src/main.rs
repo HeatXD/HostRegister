@@ -23,7 +23,9 @@ async fn main() {
     let mut host_map: HashMap<String, String> = HashMap::new();
     // loop interval
     let mut interval = time::interval(time::Duration::from_millis(750));
+    let mut loop_count: u32 = 0;
     loop {
+        loop_count += 1;
         interval.tick().await;
         // send pings to all hosts to see if theyre still active.
         for (_, host) in &mut host_register {
@@ -60,8 +62,10 @@ async fn main() {
         });
         // cleanup clients
         enet_host.check_and_cleanup_clients();
-        // CCU
-        println!("[CCU] hosts: {}, clients: {}", host_register.len(), enet_host.peer_activity_map.keys().len());
+        // CCU report every 30 seconds or 40 iterations
+        if loop_count % 40 == 0 {
+            println!("[CCU] hosts: {}, clients: {}", host_register.len(), enet_host.peer_activity_map.keys().len());
+        }
         // poll socket. on err just continue.
         for (len, addr, buf) in enet_host.poll_messages() {
             if len == 0 {
